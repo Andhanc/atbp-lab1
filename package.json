@@ -1,0 +1,17 @@
+{
+  "name": "spam-checker",
+  "version": "1.0.0",
+  "description": "Модуль для проверки текста на спам",
+  "main": "spamChecker.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "start": "npx http-server -c-1 -p 3001"
+  },
+  "keywords": ["spam", "checker", "text-analysis"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
