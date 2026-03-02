@@ -1,47 +1,38 @@
-function checkSpam(text, forbiddenWords) {
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-        throw new Error('Текст не должен быть пустым');
-    }
-
-    if (!Array.isArray(forbiddenWords)) {
-        throw new Error('Список запрещенных слов должен быть массивом');
-    }
-
-    if (forbiddenWords.length === 0) {
-        return 0;
-    }
-
-    const words = text
-        .toLowerCase()
-        .split(/\s+/)
-        .map(word => word.replace(/[.,!?;:()\[\]{}'"]/g, ''))
-        .filter(word => word.length > 0);
-
-    if (words.length === 0) {
-        return 0;
-    }
-
-    const forbiddenWordsLower = forbiddenWords.map(word =>
-        typeof word === 'string' ? word.toLowerCase() : String(word).toLowerCase()
-    );
-
-    let spamCount = 0;
-    words.forEach(word => {
-        if (forbiddenWordsLower.includes(word)) {
-            spamCount++;
+// Обертка для checkSpam с сохранением последних параметров
+// Используем немедленно выполняемую функцию, которая ждет загрузки checkSpam
+(function() {
+    function wrapCheckSpam() {
+        if (typeof window.checkSpam === 'function') {
+            const originalCheckSpam = window.checkSpam;
+            
+            window.checkSpam = function(text, forbiddenWords) {
+                window._lastText = text;
+                window._lastForbiddenWords = forbiddenWords;
+                return originalCheckSpam(text, forbiddenWords);
+            };
+            return true;
         }
-    });
-
-    const spamPercentage = (spamCount / words.length) * 100;
-
-    return Math.round(spamPercentage * 100) / 100;
-}
-
-window.checkSpam = function(text, forbiddenWords) {
-    window._lastText = text;
-    window._lastForbiddenWords = forbiddenWords;
-    return checkSpam(text, forbiddenWords);
-};
+        return false;
+    }
+    
+    // Пытаемся установить обертку сразу (если скрипты загружены в правильном порядке)
+    if (!wrapCheckSpam()) {
+        // Если не получилось, ждем немного и пробуем снова
+        // Это нужно на случай, если script.js загрузился раньше spamChecker.js
+        let attempts = 0;
+        const maxAttempts = 50; // 500ms максимум
+        
+        const tryWrap = setInterval(function() {
+            attempts++;
+            if (wrapCheckSpam() || attempts >= maxAttempts) {
+                clearInterval(tryWrap);
+                if (attempts >= maxAttempts && typeof window.checkSpam !== 'function') {
+                    console.error('❌ Не удалось найти window.checkSpam. Проверьте порядок загрузки скриптов в index.html');
+                }
+            }
+        }, 10);
+    }
+})();
 
 window.testSpam = function(text, forbiddenWords) {
     console.log('=== Автоматическая проверка данных ===');
@@ -50,7 +41,7 @@ window.testSpam = function(text, forbiddenWords) {
     console.log('');
     
     try {
-        const result = checkSpam(text, forbiddenWords);
+        const result = window.checkSpam(text, forbiddenWords);
         console.log('✅ Результат:', result + '%');
         
         if (result === 0) {
@@ -94,12 +85,12 @@ window.runAllTests = function(text, forbiddenWords) {
     let passed = 0;
     let failed = 0;
     
-    const result = checkSpam(text, forbiddenWords);
+    const result = window.checkSpam(text, forbiddenWords);
     const words = text.toLowerCase().split(/\s+/).map(w => w.replace(/[.,!?;:()\[\]{}'"]/g, '')).filter(w => w.length > 0);
     const forbiddenWordsLower = forbiddenWords.map(w => typeof w === 'string' ? w.toLowerCase() : String(w).toLowerCase());
     const spamWords = words.filter(w => forbiddenWordsLower.includes(w));
     
-    console.log('=== Позитивные сценарии ===');
+    console.log(' Позитивные сценарии ');
     
     if (result === 0) {
         console.log(`✅ Тест ${testNumber}: Текст без спама - ПРОШЕЛ (${result}%)`);
@@ -161,10 +152,10 @@ window.runAllTests = function(text, forbiddenWords) {
     }
     testNumber++;
     
-    console.log('\n=== Негативные сценарии ===');
+    console.log('\nНегативные сценарии ');
     
     try {
-        checkSpam('', forbiddenWords);
+        window.checkSpam('', forbiddenWords);
         console.log(`❌ Тест ${testNumber}: Обработка пустого текста - НЕ ПРОШЕЛ (должна быть ошибка)`);
         failed++;
     } catch (error) {
@@ -174,7 +165,7 @@ window.runAllTests = function(text, forbiddenWords) {
     testNumber++;
     
     try {
-        checkSpam('   ', forbiddenWords);
+        window.checkSpam('   ', forbiddenWords);
         console.log(`❌ Тест ${testNumber}: Обработка текста только из пробелов - НЕ ПРОШЕЛ (должна быть ошибка)`);
         failed++;
     } catch (error) {
@@ -184,7 +175,7 @@ window.runAllTests = function(text, forbiddenWords) {
     testNumber++;
     
     try {
-        checkSpam(null, forbiddenWords);
+        window.checkSpam(null, forbiddenWords);
         console.log(`❌ Тест ${testNumber}: Обработка null - НЕ ПРОШЕЛ (должна быть ошибка)`);
         failed++;
     } catch (error) {
@@ -194,7 +185,7 @@ window.runAllTests = function(text, forbiddenWords) {
     testNumber++;
     
     try {
-        checkSpam(undefined, forbiddenWords);
+        window.checkSpam(undefined, forbiddenWords);
         console.log(`❌ Тест ${testNumber}: Обработка undefined - НЕ ПРОШЕЛ (должна быть ошибка)`);
         failed++;
     } catch (error) {
@@ -204,7 +195,7 @@ window.runAllTests = function(text, forbiddenWords) {
     testNumber++;
     
     try {
-        checkSpam(text, 'не массив');
+        window.checkSpam(text, 'не массив');
         console.log(`❌ Тест ${testNumber}: Обработка некорректного типа списка - НЕ ПРОШЕЛ (должна быть ошибка)`);
         failed++;
     } catch (error) {
@@ -213,7 +204,7 @@ window.runAllTests = function(text, forbiddenWords) {
     }
     testNumber++;
     
-    console.log('\n=== Граничные значения ===');
+    console.log('\nГраничные значения ');
     
     if (words.length === 0) {
         console.log(`✅ Тест ${testNumber}: Текст без слов (только знаки препинания) - ПРОШЕЛ`);
@@ -281,7 +272,7 @@ window.runAllTests = function(text, forbiddenWords) {
         console.log(`⚠️ Тест ${testNumber}: Текст с табуляциями - пропущен`);
     }
     
-    console.log('\n=== Итоги ===');
+    console.log('\ Итоги ');
     console.log(`✅ Пройдено: ${passed}`);
     console.log(`❌ Провалено: ${failed}`);
     console.log(`📊 Всего тестов: ${testNumber - 1}`);

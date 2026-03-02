@@ -1,11 +1,236 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Spam Checker - Тестирование</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .code {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .function-list {
+            margin: 20px 0;
+        }
+        .function-list h3 {
+            color: #4CAF50;
+            margin-top: 20px;
+        }
+        .function-list ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .function-list li {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-left: 3px solid #4CAF50;
+        }
+        .example {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+    <script src="configService.js"></script>
+    <script src="spamChecker.js"></script>
     <script src="script.js"></script>
+    <script src="auto-demo.js"></script>
 </head>
 <body>
+
+
+    <script>
+        // Добавляем удобную асинхронную функцию для браузера
+        window.checkSpamAsync = async function(text, silent = false) {
+            try {
+                const result = await window.checkSpam(text);
+                if (!silent) {
+                    console.log('✅ Результат:', result + '%');
+                }
+                return result;
+            } catch (error) {
+                if (!silent) {
+                    console.error('❌ Ошибка:', error.message);
+                }
+                throw error;
+            }
+        };
+
+        // Функция для запуска тестов в браузере
+        window.runBrowserTests = async function() {
+            console.log('🧪 === Запуск тестов в браузере ===\n');
+            
+            let passed = 0;
+            let failed = 0;
+            
+            // Тест 1: Синхронная проверка
+            try {
+                const result1 = checkSpam('Это спам сообщение', ['спам', 'реклама']);
+                if (result1 === 33.33) {
+                    console.log('✅ Тест 1: Синхронная проверка - ПРОШЕЛ');
+                    passed++;
+                } else {
+                    console.log('❌ Тест 1: Синхронная проверка - НЕ ПРОШЕЛ (ожидалось 33.33, получено ' + result1 + ')');
+                    failed++;
+                }
+            } catch (error) {
+                console.log('❌ Тест 1: Синхронная проверка - ОШИБКА:', error.message);
+                failed++;
+            }
+
+            // Тест 2: Асинхронная проверка с ConfigService
+            try {
+                resetBlacklistCache();
+                const result2 = await checkSpamAsync('Это спам реклама купить');
+                if (result2 > 0) {
+                    console.log('✅ Тест 2: Асинхронная проверка с ConfigService - ПРОШЕЛ (' + result2 + '%)');
+                    passed++;
+                } else {
+                    console.log('❌ Тест 2: Асинхронная проверка - НЕ ПРОШЕЛ');
+                    failed++;
+                }
+            } catch (error) {
+                console.log('❌ Тест 2: Асинхронная проверка - ОШИБКА:', error.message);
+                failed++;
+            }
+
+            // Тест 3: Загрузка списка
+            try {
+                resetBlacklistCache();
+                const blacklist = await loadBlacklist();
+                if (Array.isArray(blacklist) && blacklist.length > 0) {
+                    console.log('✅ Тест 3: Загрузка списка из ConfigService - ПРОШЕЛ', blacklist);
+                    passed++;
+                } else {
+                    console.log('❌ Тест 3: Загрузка списка - НЕ ПРОШЕЛ');
+                    failed++;
+                }
+            } catch (error) {
+                console.log('❌ Тест 3: Загрузка списка - ОШИБКА:', error.message);
+                failed++;
+            }
+
+            // Тест 4: Кэширование (должен загрузить только один раз)
+            try {
+                resetBlacklistCache();
+                const call1 = loadBlacklist();
+                const call2 = loadBlacklist();
+                const [list1, list2] = await Promise.all([call1, call2]);
+                if (list1.length === list2.length) {
+                    console.log('✅ Тест 4: Кэширование списка - ПРОШЕЛ');
+                    passed++;
+                } else {
+                    console.log('❌ Тест 4: Кэширование - НЕ ПРОШЕЛ');
+                    failed++;
+                }
+            } catch (error) {
+                console.log('❌ Тест 4: Кэширование - ОШИБКА:', error.message);
+                failed++;
+            }
+
+            // Тест 5: Пустой список
+            try {
+                resetBlacklistCache();
+                configService.getBlacklist = async () => [];
+                const result5 = await checkSpamAsync('Это спам');
+                if (result5 === 0) {
+                    console.log('✅ Тест 5: Пустой список - ПРОШЕЛ');
+                    passed++;
+                } else {
+                    console.log('❌ Тест 5: Пустой список - НЕ ПРОШЕЛ');
+                    failed++;
+                }
+                // Восстанавливаем оригинальный метод
+                configService.resetCache();
+            } catch (error) {
+                console.log('❌ Тест 5: Пустой список - ОШИБКА:', error.message);
+                failed++;
+            }
+
+            // Тест 6: Обработка ошибок
+            try {
+                resetBlacklistCache();
+                const originalGetBlacklist = configService.getBlacklist;
+                configService.getBlacklist = async () => {
+                    throw new Error('Network error');
+                };
+                try {
+                    // Используем silent=true, чтобы не выводить ошибку в консоль (это ожидаемая ошибка)
+                    await checkSpamAsync('Это спам', true);
+                    console.log('❌ Тест 6: Обработка ошибок - НЕ ПРОШЕЛ (должна была быть ошибка)');
+                    failed++;
+                } catch (error) {
+                    if (error.message.includes('Ошибка загрузки')) {
+                        console.log('✅ Тест 6: Обработка ошибок - ПРОШЕЛ');
+                        console.log('   (Ошибка обработана корректно: ' + error.message + ')');
+                        passed++;
+                    } else {
+                        console.log('❌ Тест 6: Обработка ошибок - НЕ ПРОШЕЛ (неправильная ошибка)');
+                        console.log('   Получено: ' + error.message);
+                        failed++;
+                    }
+                }
+                configService.getBlacklist = originalGetBlacklist;
+            } catch (error) {
+                console.log('❌ Тест 6: Обработка ошибок - ОШИБКА:', error.message);
+                failed++;
+            }
+
+            console.log('\n📊 === Итоги тестирования ===');
+            console.log('✅ Пройдено: ' + passed);
+            console.log('❌ Провалено: ' + failed);
+            console.log('📈 Успешность: ' + Math.round((passed / (passed + failed)) * 100) + '%');
+        };
+
+        
+        (function() {
+            function showReadyMessage() {
+                if (typeof window.checkSpam === 'function') {
+                    
+                } else {
+                   
+                    setTimeout(showReadyMessage, 500);
+                }
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showReadyMessage);
+            } else {
+                showReadyMessage();
+            }
+        })();
+    </script>
 </body>
 </html>

@@ -1,16 +1,22 @@
 {
   "name": "spam-checker",
   "version": "1.0.0",
-  "description": "Модуль для проверки текста на спам",
+  "description": "Модуль и REST API для проверки текста на спам (лабораторная работа №3, вариант 14)",
   "main": "spamChecker.js",
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "start": "npx http-server -c-1 -p 3001"
+    "test:coverage": "jest --coverage",
+    "start": "node server.js",
+    "static": "npx http-server -c-1 -p 3001",
+    "static:dev": "npx http-server -c-1 -p 3001 -o"
   },
   "keywords": ["spam", "checker", "text-analysis"],
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
   "devDependencies": {
     "jest": "^29.7.0"
   }
