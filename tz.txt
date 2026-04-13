@@ -483,7 +483,7 @@ npx allure serve allure-results
 Продвинутый уровень.
 Обернуть приложение в Docker, написать Dockerfile и настроить запуск тестов внутри контейнера в CI.
 
-Вспомогательная литература
+Вспомогательная литератураferfe
 Документация по Jest [Электронный ресурс]. – Режим доступа: https://jestjs.io/docs/getting-started. 
 Документация по Cucumber [Электронный ресурс]. – Режим доступа: https://cucumber.io/docs/. 
 Как настроить CI/CD с GitHub Actions [Электронный ресурс]. – Режим доступа:https://adminvps.ru/blog/kak-nastroit-ci-cd-s-github-actions/
