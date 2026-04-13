@@ -163,7 +163,7 @@ jobs:
           publish_dir: ./allure-report
 
   notify-email:
-    name: Email notification (Web3Forms)
+    name: Email notification (SMTP)
     runs-on: ubuntu-latest
     needs: [unit-tests, api-tests, ui-tests, allure-report]
     if: always()
@@ -181,34 +181,22 @@ jobs:
             echo "icon=❌" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Send email via Web3Forms
-        env:
-          WEB3FORMS_ACCESS_KEY: ${{ secrets.WEB3FORMS_ACCESS_KEY }}
-          WEB3FORMS_TO_EMAIL: ${{ secrets.WEB3FORMS_TO_EMAIL }}
-        run: |
-          if [[ -z "$WEB3FORMS_ACCESS_KEY" ]]; then
-            echo "WEB3FORMS_ACCESS_KEY is not set; skip email notification."
-            exit 0
-          fi
-
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          SUBJECT="[CI] ${{ steps.status.outputs.icon }} ${{ steps.status.outputs.state }} - ${{ github.repository }}"
-          MESSAGE="Repository: ${{ github.repository }}%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}%0AStatus: ${{ steps.status.outputs.state }}%0AActor: ${{ github.actor }}%0AWorkflow run: $RUN_URL%0AAllure report artifact: available in Actions run artifacts"
-
-          curl -sS -X POST https://api.web3forms.com/submit \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "access_key=$WEB3FORMS_ACCESS_KEY" \
-            --data-urlencode "from_email=ci-bot@github-actions.local" \
-            --data-urlencode "email=ci-bot@github-actions.local" \
-            --data-urlencode "to=$WEB3FORMS_TO_EMAIL" \
-            --data-urlencode "subject=$SUBJECT" \
-            --data-urlencode "from_name=GitHub Actions CI" \
-            --data-urlencode "message=$MESSAGE" > /tmp/web3forms_response.json
-
-          echo "Web3Forms response:"
-          cat /tmp/web3forms_response.json
-
-          if ! grep -q '"success":true' /tmp/web3forms_response.json; then
-            echo "Web3Forms did not accept email request."
-            exit 1
-          fi
+      - name: Send email via SMTP
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "[CI] ${{ steps.status.outputs.icon }} ${{ steps.status.outputs.state }} - ${{ github.repository }}"
+          to: ${{ secrets.MAIL_TO }}
+          from: GitHub Actions CI <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Status: ${{ steps.status.outputs.state }}
+            Actor: ${{ github.actor }}
+            Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Allure report artifact: available in Actions run artifacts
