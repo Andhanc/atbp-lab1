@@ -1,16 +1,5 @@
 // @ts-check
-const path = require('path');
 const { defineConfig, devices } = require('@playwright/test');
-
-// Локальный каталог браузеров после `npx playwright install chromium`
-if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
-  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(
-    __dirname,
-    'node_modules',
-    '.cache',
-    'playwright'
-  );
-}
 
 module.exports = defineConfig({
   testDir: './e2e',
@@ -35,7 +24,7 @@ module.exports = defineConfig({
   webServer: {
     command: 'node server.js',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 15_000,
   },
 });

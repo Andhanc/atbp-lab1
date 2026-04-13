@@ -113,7 +113,7 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Run UI tests
-        run: npx start-server-and-test "npm start" http://localhost:3000 "npm run test:ui -- --project=${{ matrix.browser }}"
+        run: npm run test:ui -- --project=${{ matrix.browser }}
       - name: Upload UI artifacts
         if: always()
         uses: actions/upload-artifact@v4
