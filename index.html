@@ -179,7 +179,6 @@
                 failed++;
             }
 
-            // Тест 6: Обработка ошибок
             try {
                 resetBlacklistCache();
                 const originalGetBlacklist = configService.getBlacklist;
@@ -187,7 +186,6 @@
                     throw new Error('Network error');
                 };
                 try {
-                    // Используем silent=true, чтобы не выводить ошибку в консоль (это ожидаемая ошибка)
                     await checkSpamAsync('Это спам', true);
                     console.log('❌ Тест 6: Обработка ошибок - НЕ ПРОШЕЛ (должна была быть ошибка)');
                     failed++;

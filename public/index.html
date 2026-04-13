@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Проверка текста на спам</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Проверка текста на спам</h1>
+
+    <section class="panel" aria-labelledby="words-heading">
+      <h2 id="words-heading">Запрещённые слова</h2>
+      <ul id="spamWordsList" class="word-list" aria-live="polite"></ul>
+      <p id="wordsLoadError" class="error" hidden></p>
+    </section>
+
+    <section class="panel" aria-labelledby="form-heading">
+      <h2 id="form-heading">Сообщение</h2>
+      <label for="messageInput" class="sr-only">Текст сообщения</label>
+      <textarea
+        id="messageInput"
+        rows="6"
+        placeholder="Введите текст для проверки…"
+        autocomplete="off"
+      ></textarea>
+      <button type="button" id="checkSpamBtn">Проверить спам</button>
+    </section>
+
+    <section class="panel result-panel" aria-live="polite" aria-atomic="true">
+      <div id="errorArea" class="error" hidden></div>
+      <div id="resultArea" class="result" hidden>
+        <p id="spamPercentLine" class="spam-percent"></p>
+        <p class="message-label">Текст с выделением:</p>
+        <div id="highlightedMessage" class="highlighted-message"></div>
+      </div>
+    </section>
+  </main>
+  <script src="/script.js"></script>
+</body>
+</html>

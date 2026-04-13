@@ -9,6 +9,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+app.use(express.static('public'));
 
 /**
  * Технический эндпоинт для проверки готовности сервиса
@@ -79,7 +80,7 @@ app.get('/api/config/spam-words', async (req, res) => {
  * }
  */
 app.post('/api/spam/check', async (req, res) => {
-  const { text } = req.body || {};
+  const { text, spamWords } = req.body || {};
 
   // Валидация входных данных (пустой текст → 400)
   if (typeof text !== 'string' || text.trim().length === 0) {
@@ -90,9 +91,10 @@ app.post('/api/spam/check', async (req, res) => {
   }
 
   try {
-    // checkSpam без второго аргумента работает в асинхронном режиме
-    // и сам загружает список запрещённых слов из ConfigService
-    const spamPercentage = await checkSpam(text);
+    // Если передан список слов (например, из BDD-сценария после GET), используем его
+    const spamPercentage = Array.isArray(spamWords) && spamWords.length > 0
+      ? checkSpam(text, spamWords)
+      : await checkSpam(text);
 
     res.status(200).json({
       status: 'success',
@@ -120,8 +122,14 @@ app.post('/api/spam/check', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Сервер запущен на http://localhost:${PORT}`);
-  console.log('Готов к тестированию API через Postman');
-});
+// Запуск сервера только при прямом запуске (node server.js)
+// При импорте в тесты (Supertest) сервер не запускается
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Сервер запущен на http://localhost:${PORT}`);
+    console.log('Готов к тестированию API через Postman');
+  });
+}
+
+module.exports = app;
 

@@ -1,0 +1,207 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  actionlint:
+    name: Validate workflow syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run actionlint
+        uses: rhysd/actionlint@v1
+
+  unit-tests:
+    name: Unit (Node ${{ matrix.node }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [actionlint]
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run unit tests
+        run: npm run test:unit
+      - name: Upload unit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-${{ matrix.os }}-node-${{ matrix.node }}
+          path: |
+            coverage/
+            allure-results/
+          if-no-files-found: ignore
+
+  api-tests:
+    name: API (Node ${{ matrix.node }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [actionlint]
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run API tests
+        run: npx start-server-and-test "npm start" http://localhost:3000 "npm run test:api"
+      - name: Upload API artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-${{ matrix.os }}-node-${{ matrix.node }}
+          path: |
+            report.html
+            allure-results/
+          if-no-files-found: ignore
+
+  ui-tests:
+    name: UI (Node ${{ matrix.node }} / Ubuntu / ${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: [actionlint]
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+        browser: [chromium, firefox, webkit]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run UI tests
+        run: npx start-server-and-test "npm start" http://localhost:3000 "npm run test:ui -- --project=${{ matrix.browser }}"
+      - name: Upload UI artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-${{ matrix.browser }}-node-${{ matrix.node }}
+          path: |
+            playwright-report/
+            test-results/
+            allure-results/
+          if-no-files-found: ignore
+
+  allure-report:
+    name: Build and publish Allure report
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [unit-tests, api-tests, ui-tests]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+      - name: Merge Allure results
+        shell: bash
+        run: |
+          mkdir -p merged-allure-results
+          cp -R all-artifacts/*/allure-results/. merged-allure-results 2>/dev/null || true
+      - name: Generate Allure report
+        run: npx allure generate merged-allure-results --clean -o allure-report
+      - name: Upload Allure report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report/
+      - name: Publish Allure on GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
+
+  notify-email:
+    name: Email notification (Web3Forms)
+    runs-on: ubuntu-latest
+    needs: [unit-tests, api-tests, ui-tests, allure-report]
+    if: always()
+
+    steps:
+      - name: Compute pipeline status
+        id: status
+        shell: bash
+        run: |
+          if [[ "${{ needs.unit-tests.result }}" == "success" && "${{ needs.api-tests.result }}" == "success" && "${{ needs.ui-tests.result }}" == "success" ]]; then
+            echo "state=SUCCESS" >> "$GITHUB_OUTPUT"
+            echo "icon=✅" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=FAILED" >> "$GITHUB_OUTPUT"
+            echo "icon=❌" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send email via Web3Forms
+        env:
+          WEB3FORMS_ACCESS_KEY: ${{ secrets.WEB3FORMS_ACCESS_KEY }}
+        run: |
+          if [[ -z "$WEB3FORMS_ACCESS_KEY" ]]; then
+            echo "WEB3FORMS_ACCESS_KEY is not set; skip email notification."
+            exit 0
+          fi
+
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SUBJECT="[CI] ${{ steps.status.outputs.icon }} ${{ steps.status.outputs.state }} - ${{ github.repository }}"
+          MESSAGE="Repository: ${{ github.repository }}%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}%0AStatus: ${{ steps.status.outputs.state }}%0AActor: ${{ github.actor }}%0AWorkflow run: $RUN_URL%0AAllure report artifact: available in Actions run artifacts"
+
+          curl -sS -X POST https://api.web3forms.com/submit \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "access_key=$WEB3FORMS_ACCESS_KEY" \
+            --data-urlencode "subject=$SUBJECT" \
+            --data-urlencode "from_name=GitHub Actions CI" \
+            --data-urlencode "message=$MESSAGE" > /tmp/web3forms_response.json
+
+          echo "Web3Forms response:"
+          cat /tmp/web3forms_response.json

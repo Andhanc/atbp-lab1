@@ -15,16 +15,12 @@ class ConfigService {
             return this.loadingPromise;
         }
 
-        // Если уже загружено, возвращаем из кэша
         if (this.cache !== null) {
             return Promise.resolve(this.cache);
         }
 
-        // Имитация загрузки из внешней базы данных или API
         this.loadingPromise = new Promise((resolve, reject) => {
-            // Имитация сетевой задержки
             setTimeout(() => {
-                // В реальном приложении здесь был бы запрос к API/БД
                 const blacklist = ['спам', 'реклама', 'купить', 'бесплатно', 'акция'];
                 this.cache = blacklist;
                 this.loadingPromise = null;
