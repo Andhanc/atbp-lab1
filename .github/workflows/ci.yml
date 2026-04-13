@@ -18,7 +18,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Run actionlint
-        uses: rhysd/actionlint@v1
+        uses: rhysd/actionlint@v1.7.7
 
   unit-tests:
     name: Unit (Node ${{ matrix.node }} / ${{ matrix.os }})
@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20, 22]
+        node: [20, 22]
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout code
