@@ -24,7 +24,8 @@ module.exports = defineConfig({
   webServer: {
     command: 'node server.js',
     url: 'http://localhost:3000',
-    reuseExistingServer: true,
+    // Запускаем тестовый сервер заново, чтобы не подхватывать случайный процесс на 3000 порту.
+    reuseExistingServer: false,
     timeout: 15_000,
   },
 });
